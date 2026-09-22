@@ -3,6 +3,9 @@ import heroImg from './assets/hero.png'
 import javascriptLogo from './assets/javascript.svg'
 import viteLogo from './assets/vite.svg'
 import { setupCounter } from './counter.js'
+import { createLoop } from './loop.js';// <-- Імпорт перенесено сюди, до інших імпортів
+
+
 
 document.querySelector('#app').innerHTML = `
 <section id="center">
@@ -58,3 +61,13 @@ document.querySelector('#app').innerHTML = `
 `
 
 setupCounter(document.querySelector('#counter'))
+
+// Створюємо та запускаємо цикл внизу файлу
+const loop = createLoop({
+    step: 1 / 60,
+    simulate: (dt) => { },
+    render: (alpha) => { }
+});
+
+// Обов'язково запускаємо цикл!
+loop.start();
