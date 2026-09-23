@@ -4,10 +4,31 @@ import javascriptLogo from './assets/javascript.svg'
 import viteLogo from './assets/vite.svg'
 import { setupCounter } from './counter.js'
 import { createLoop } from './loop.js';// <-- Імпорт перенесено сюди, до інших імпортів
+import { createInput } from './input.js'; // <-- Додано
+import { createShip } from './ship.js';   // <-- Додано
 
 
 
 document.querySelector('#app').innerHTML = `
+
+<!-- ДОДАНО HUD -->
+<div id="hud" style="position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); color: #0f0; padding: 10px; font-family: monospace; z-index: 1000; border-radius: 5px;">
+  <div>steps/s: <span id="hud-steps">0</span></div>
+  <div>frames/s: <span id="hud-frames">0</span></div>
+  <div>frame ms: <span id="hud-ms">0</span></div>
+</div>
+
+<!-- CANVAS ДЛЯ ГРИ -->
+<canvas id="game-canvas" width="800" height="600" style="background: #111; display: block; margin: 20px auto; border: 1px solid #333;"></canvas>
+
+<section id="center">
+  <button id="counter" type="button" class="counter"></button>
+</section>
+
+
+<section id="center">
+  <!-- ... Твій старий HTML залишається тут без змін ... -->
+
 <section id="center">
   <div class="hero">
     <img src="${heroImg}" class="base" width="170" height="179">
@@ -62,12 +83,57 @@ document.querySelector('#app').innerHTML = `
 
 setupCounter(document.querySelector('#counter'))
 
-// Створюємо та запускаємо цикл внизу файлу
+// Ініціалізація Canvas, клавіатури та корабля
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+const input = createInput();
+const ship = createShip(canvas.width / 2, canvas.height / 2);
+
+// HUD елементи
+
+// Знаходимо наші нові HTML-елементи
+const hudSteps = document.getElementById('hud-steps');
+const hudFrames = document.getElementById('hud-frames');
+const hudMs = document.getElementById('hud-ms');
+
+// Створюємо «скарбнички» для підрахунку
+let stepsThisSecond = 0;
+let framesThisSecond = 0;
+let lastSecondTime = performance.now();
+let lastFrameTime = performance.now();
+
 const loop = createLoop({
     step: 1 / 60,
-    simulate: (dt) => { },
-    render: (alpha) => { }
+    simulate: (dt) => {
+        stepsThisSecond++;
+        // Оновлюємо стан корабля (фізику)
+        ship.update(dt, input, canvas.width, canvas.height);
+    },
+    render: (alpha) => {
+        framesThisSecond++;
+
+        // Очищаємо Canvas перед кожним новим кадром
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Малюємо корабель
+        ship.draw(ctx);
+
+        // Оновлення HUD
+        const now = performance.now();
+        const frameMs = now - lastFrameTime;
+        lastFrameTime = now;
+
+        if (now - lastSecondTime >= 1000) {
+            hudSteps.textContent = stepsThisSecond;
+            hudFrames.textContent = framesThisSecond;
+            hudMs.textContent = frameMs.toFixed(1);
+
+            stepsThisSecond = 0;
+            framesThisSecond = 0;
+            lastSecondTime = now;
+        }
+    }
 });
 
-// Обов'язково запускаємо цикл!
-loop.start();
+loop.start(); 
+
