@@ -6,6 +6,7 @@ import { setupCounter } from './counter.js'
 import { createLoop } from './loop.js';// <-- Імпорт перенесено сюди, до інших імпортів
 import { createInput } from './input.js'; // <-- Додано
 import { createShip } from './ship.js';   // <-- Додано
+import { createBullet } from './bullet.js'; // <-- Додано імпорт
 
 
 
@@ -21,13 +22,7 @@ document.querySelector('#app').innerHTML = `
 <!-- CANVAS ДЛЯ ГРИ -->
 <canvas id="game-canvas" width="800" height="600" style="background: #111; display: block; margin: 20px auto; border: 1px solid #333;"></canvas>
 
-<section id="center">
-  <button id="counter" type="button" class="counter"></button>
-</section>
 
-
-<section id="center">
-  <!-- ... Твій старий HTML залишається тут без змін ... -->
 
 <section id="center">
   <div class="hero">
@@ -102,12 +97,46 @@ let framesThisSecond = 0;
 let lastSecondTime = performance.now();
 let lastFrameTime = performance.now();
 
+
+// Масив, де будуть жити всі наші активні кулі
+const bullets = [];
+// Таймер, щоб корабель не стріляв 60 разів на секунду
+let fireCooldown = 0;
+
 const loop = createLoop({
     step: 1 / 60,
     simulate: (dt) => {
         stepsThisSecond++;
         // Оновлюємо стан корабля (фізику)
         ship.update(dt, input, canvas.width, canvas.height);
+
+        // --- ЛОГІКА СТРІЛЬБИ ---
+        // Зменшуємо кулдаун (таймер перезарядки)
+        if (fireCooldown > 0) {
+            fireCooldown -= dt;
+        }
+
+        // Якщо натиснуто Пробіл і зброя перезаряджена
+        if (input.isDown('Space') && fireCooldown <= 0) {
+            // Створюємо нову кулю на носі корабля
+            // Щоб куля вилітала саме з носа, додаємо зміщення 15 пікселів
+            const noseX = ship.x + Math.cos(ship.angle) * 15;
+            const noseY = ship.y + Math.sin(ship.angle) * 15;
+
+            bullets.push(createBullet(noseX, noseY, ship.angle));
+            fireCooldown = 0.2; // Наступний постріл можливий через 0.2 секунди
+        }
+
+        // Оновлюємо координати всіх куль
+        bullets.forEach(bullet => bullet.update(dt, canvas.width, canvas.height));
+
+        // Видаляємо старі кулі, у яких закінчився "час життя"
+        for (let i = bullets.length - 1; i >= 0; i--) {
+            if (bullets[i].life <= 0) {
+                bullets.splice(i, 1); // Видаляємо з масиву
+            }
+        }
+
     },
     render: (alpha) => {
         framesThisSecond++;
@@ -117,6 +146,11 @@ const loop = createLoop({
 
         // Малюємо корабель
         ship.draw(ctx);
+
+        // --- МАЛЮВАННЯ КУЛЬ ---
+        bullets.forEach(bullet => bullet.draw(ctx));
+
+
 
         // Оновлення HUD
         const now = performance.now();
