@@ -7,6 +7,8 @@ import { createLoop } from './loop.js';// <-- Імпорт перенесено сюди, до інших і
 import { createInput } from './input.js'; // <-- Додано
 import { createShip } from './ship.js';   // <-- Додано
 import { createBullet } from './bullet.js'; // <-- Додано імпорт
+import { createAsteroid } from './asteroid.js';
+
 
 
 
@@ -100,8 +102,15 @@ let lastFrameTime = performance.now();
 
 // Масив, де будуть жити всі наші активні кулі
 const bullets = [];
-// Таймер, щоб корабель не стріляв 60 разів на секунду
 let fireCooldown = 0;
+
+// Створюємо 5 випадкових астероїдів
+const asteroids = [];
+for (let i = 0; i < 5; i++) {
+    // Розміщуємо їх випадково, радіус 30
+    asteroids.push(createAsteroid(Math.random() * canvas.width, Math.random() * canvas.height, 30));
+}
+
 
 const loop = createLoop({
     step: 1 / 60,
@@ -137,6 +146,31 @@ const loop = createLoop({
             }
         }
 
+        // Оновлюємо астероїди
+        asteroids.forEach(asteroid => asteroid.update(dt, canvas.width, canvas.height));
+
+        // --- ЛОГІКА ЗІТКНЕНЬ (Куля влучає в астероїд) ---
+        // Йдемо по масиву куль з кінця в початок
+        for (let i = bullets.length - 1; i >= 0; i--) {
+            // Йдемо по масиву астероїдів з кінця в початок
+            for (let j = asteroids.length - 1; j >= 0; j--) {
+                const b = bullets[i];
+                const a = asteroids[j];
+
+                // Перевіряємо відстань між кулею та астероїдом (Теорема Піфагора)
+                const dx = b.x - a.x;
+                const dy = b.y - a.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                // Якщо відстань менша за радіус астероїда - це попадання!
+                if (distance < a.radius) {
+                    bullets[i].life = 0;    // Знищуємо кулю (встановлюємо життя в 0)
+                    asteroids.splice(j, 1); // Видаляємо астероїд з масиву
+                    break; // Куля вже влучила, виходимо з внутрішнього циклу
+                }
+            }
+        }
+
     },
     render: (alpha) => {
         framesThisSecond++;
@@ -144,13 +178,26 @@ const loop = createLoop({
         // Очищаємо Canvas перед кожним новим кадром
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+        // --- ДОДАЄМО НЕОНОВІ МЕЖІ КОСМОСУ ---
+        ctx.save(); // Зберігаємо поточний стан полотна
+        ctx.strokeStyle = '#00e5ff'; // Неоновий синій/блакитний колір
+        ctx.lineWidth = 4;           // Товщина лінії
+        ctx.shadowBlur = 15;         // Розмиття для ефекту світіння (неон)
+        ctx.shadowColor = '#00e5ff'; // Колір світіння
+
+        // Малюємо рамку по периметру Canvas (відступаємо 2 пікселі, щоб лінію було добре видно)
+        ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+        ctx.restore(); // Повертаємо стан полотна (щоб неон не застосувався до корабля)
+        // ------------------------------------
+
         // Малюємо корабель
         ship.draw(ctx);
 
         // --- МАЛЮВАННЯ КУЛЬ ---
         bullets.forEach(bullet => bullet.draw(ctx));
 
-
+        // МАЛЮВАННЯ АСТЕРОЇДІВ
+        asteroids.forEach(asteroid => asteroid.draw(ctx));
 
         // Оновлення HUD
         const now = performance.now();

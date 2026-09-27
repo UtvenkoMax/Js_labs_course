@@ -2,6 +2,9 @@
 export function createBullet(x, y, angle) {
     const speed = 500; // Ўвидк≥сть лазера (швидше за корабель)
 
+    
+
+
     return {
         x,
         y,
