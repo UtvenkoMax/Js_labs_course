@@ -1,214 +1,88 @@
-import './style.css'
-import heroImg from './assets/hero.png'
-import javascriptLogo from './assets/javascript.svg'
-import viteLogo from './assets/vite.svg'
-import { setupCounter } from './counter.js'
-import { createLoop } from './loop.js';// <-- Імпорт перенесено сюди, до інших імпортів
-import { createInput } from './input.js'; // <-- Додано
-import { createShip } from './ship.js';   // <-- Додано
-import { createBullet } from './bullet.js'; // <-- Додано імпорт
-import { createAsteroid } from './asteroid.js';
-
-
+import './style.css';
+import { createLoop } from './loop.js';
+import { createInput } from './input.js';
+import { createShip, integrate } from './sim/ship.js';
+import { wrapAround } from './sim/arena.js';
+import { createBullet, updateBullets } from './sim/bullet.js';
+import { createAsteroid, updateAsteroids } from './sim/asteroid.js';
+import { checkCollisions } from './sim/collisions.js';
+import { setupCanvas } from './render/canvas.js';
+import { drawShip, drawHud, drawBullet, drawAsteroid, drawArena } from './render/draw.js';
 
 
 document.querySelector('#app').innerHTML = `
-
-<!-- ДОДАНО HUD -->
 <div id="hud" style="position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); color: #0f0; padding: 10px; font-family: monospace; z-index: 1000; border-radius: 5px;">
   <div>steps/s: <span id="hud-steps">0</span></div>
   <div>frames/s: <span id="hud-frames">0</span></div>
   <div>frame ms: <span id="hud-ms">0</span></div>
 </div>
+<canvas id="game-canvas" style="width: 800px; height: 600px; background: #111; display: block; margin: 20px auto; border: 1px solid #333;"></canvas>
+`;
 
-<!-- CANVAS ДЛЯ ГРИ -->
-<canvas id="game-canvas" width="800" height="600" style="background: #111; display: block; margin: 20px auto; border: 1px solid #333;"></canvas>
-
-
-
-<section id="center">
-  <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-    <img src="${javascriptLogo}" class="framework" alt="JavaScript logo"/>
-    <img src="${viteLogo}" class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/main.js</code> and save to test <code>HMR</code></p>
-  </div>
-  <button id="counter" type="button" class="counter"></button>
-</section>
-
-<div class="ticks"></div>
-
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#documentation-icon"></use></svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">
-          <img class="button-icon" src="${javascriptLogo}" alt="">
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li><a href="https://github.com/vitejs/vite" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#github-icon"></use></svg>GitHub</a></li>
-      <li><a href="https://chat.vite.dev/" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#discord-icon"></use></svg>Discord</a></li>
-      <li><a href="https://x.com/vite_js" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#x-icon"></use></svg>X.com</a></li>
-      <li><a href="https://bsky.app/profile/vite.dev" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#bluesky-icon"></use></svg>Bluesky</a></li>
-    </ul>
-  </div>
-</section>
-
-<div class="ticks"></div>
-<section id="spacer"></section>
-`
-
-setupCounter(document.querySelector('#counter'))
-
-// Ініціалізація Canvas, клавіатури та корабля
-const canvas = document.getElementById('game-canvas');
-const ctx = canvas.getContext('2d');
+const { canvas, ctx, logicalWidth, logicalHeight } = setupCanvas('game-canvas');
 const input = createInput();
-const ship = createShip(canvas.width / 2, canvas.height / 2);
 
-// HUD елементи
+// --- Ініціалізація стану гри ---
+const ship = createShip(logicalWidth / 2, logicalHeight / 2);
+const bullets = [];
+const asteroids = [];
+let fireCooldown = 0;
 
-// Знаходимо наші нові HTML-елементи
-const hudSteps = document.getElementById('hud-steps');
-const hudFrames = document.getElementById('hud-frames');
-const hudMs = document.getElementById('hud-ms');
+for (let i = 0; i < 5; i++) {
+    asteroids.push(createAsteroid(Math.random() * logicalWidth, Math.random() * logicalHeight, 30));
+}
 
-// Створюємо «скарбнички» для підрахунку
+// --- Лічильники ---
 let stepsThisSecond = 0;
 let framesThisSecond = 0;
 let lastSecondTime = performance.now();
 let lastFrameTime = performance.now();
 
-
-// Масив, де будуть жити всі наші активні кулі
-const bullets = [];
-let fireCooldown = 0;
-
-// Створюємо 5 випадкових астероїдів
-const asteroids = [];
-for (let i = 0; i < 5; i++) {
-    // Розміщуємо їх випадково, радіус 30
-    asteroids.push(createAsteroid(Math.random() * canvas.width, Math.random() * canvas.height, 30));
-}
-
-
+// --- Ігровий цикл ---
 const loop = createLoop({
     step: 1 / 60,
     simulate: (dt) => {
         stepsThisSecond++;
-        // Оновлюємо стан корабля (фізику)
-        ship.update(dt, input, canvas.width, canvas.height);
 
-        // --- ЛОГІКА СТРІЛЬБИ ---
-        // Зменшуємо кулдаун (таймер перезарядки)
-        if (fireCooldown > 0) {
-            fireCooldown -= dt;
-        }
+        // 1. Корабель
+        integrate(ship, input, dt);
+        wrapAround(ship, logicalWidth, logicalHeight);
 
-        // Якщо натиснуто Пробіл і зброя перезаряджена
+        // 2. Стрільба
+        if (fireCooldown > 0) fireCooldown -= dt;
         if (input.isDown('Space') && fireCooldown <= 0) {
-            // Створюємо нову кулю на носі корабля
-            // Щоб куля вилітала саме з носа, додаємо зміщення 15 пікселів
             const noseX = ship.x + Math.cos(ship.angle) * 15;
             const noseY = ship.y + Math.sin(ship.angle) * 15;
-
             bullets.push(createBullet(noseX, noseY, ship.angle));
-            fireCooldown = 0.2; // Наступний постріл можливий через 0.2 секунди
+            fireCooldown = 0.2;
         }
 
-        // Оновлюємо координати всіх куль
-        bullets.forEach(bullet => bullet.update(dt, canvas.width, canvas.height));
+        // 3. Оновлення інших об'єктів
+        updateBullets(bullets, dt, logicalWidth, logicalHeight);
+        updateAsteroids(asteroids, dt, logicalWidth, logicalHeight);
 
-        // Видаляємо старі кулі, у яких закінчився "час життя"
-        for (let i = bullets.length - 1; i >= 0; i--) {
-            if (bullets[i].life <= 0) {
-                bullets.splice(i, 1); // Видаляємо з масиву
-            }
-        }
-
-        // Оновлюємо астероїди
-        asteroids.forEach(asteroid => asteroid.update(dt, canvas.width, canvas.height));
-
-        // --- ЛОГІКА ЗІТКНЕНЬ (Куля влучає в астероїд) ---
-        // Йдемо по масиву куль з кінця в початок
-        for (let i = bullets.length - 1; i >= 0; i--) {
-            // Йдемо по масиву астероїдів з кінця в початок
-            for (let j = asteroids.length - 1; j >= 0; j--) {
-                const b = bullets[i];
-                const a = asteroids[j];
-
-                // Перевіряємо відстань між кулею та астероїдом (Теорема Піфагора)
-                const dx = b.x - a.x;
-                const dy = b.y - a.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-
-                // Якщо відстань менша за радіус астероїда - це попадання!
-                if (distance < a.radius) {
-                    bullets[i].life = 0;    // Знищуємо кулю (встановлюємо життя в 0)
-                    asteroids.splice(j, 1); // Видаляємо астероїд з масиву
-                    break; // Куля вже влучила, виходимо з внутрішнього циклу
-                }
-            }
-        }
-
+        // 4. Фізика (зіткнення)
+        checkCollisions(bullets, asteroids);
     },
     render: (alpha) => {
         framesThisSecond++;
+        ctx.clearRect(0, 0, logicalWidth, logicalHeight);
 
-        // Очищаємо Canvas перед кожним новим кадром
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Малюємо рамку арени
+        drawArena(ctx, logicalWidth, logicalHeight);
 
-        // --- ДОДАЄМО НЕОНОВІ МЕЖІ КОСМОСУ ---
-        ctx.save(); // Зберігаємо поточний стан полотна
-        ctx.strokeStyle = '#00e5ff'; // Неоновий синій/блакитний колір
-        ctx.lineWidth = 4;           // Товщина лінії
-        ctx.shadowBlur = 15;         // Розмиття для ефекту світіння (неон)
-        ctx.shadowColor = '#00e5ff'; // Колір світіння
+        // 1. Малюємо все
+        drawShip(ctx, ship);
+        bullets.forEach(b => drawBullet(ctx, b));
+        asteroids.forEach(a => drawAsteroid(ctx, a));
 
-        // Малюємо рамку по периметру Canvas (відступаємо 2 пікселі, щоб лінію було добре видно)
-        ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
-        ctx.restore(); // Повертаємо стан полотна (щоб неон не застосувався до корабля)
-        // ------------------------------------
-
-        // Малюємо корабель
-        ship.draw(ctx);
-
-        // --- МАЛЮВАННЯ КУЛЬ ---
-        bullets.forEach(bullet => bullet.draw(ctx));
-
-        // МАЛЮВАННЯ АСТЕРОЇДІВ
-        asteroids.forEach(asteroid => asteroid.draw(ctx));
-
-        // Оновлення HUD
+        // 2. Оновлення HUD
         const now = performance.now();
         const frameMs = now - lastFrameTime;
         lastFrameTime = now;
 
         if (now - lastSecondTime >= 1000) {
-            hudSteps.textContent = stepsThisSecond;
-            hudFrames.textContent = framesThisSecond;
-            hudMs.textContent = frameMs.toFixed(1);
-
+            drawHud(stepsThisSecond, framesThisSecond, frameMs.toFixed(1));
             stepsThisSecond = 0;
             framesThisSecond = 0;
             lastSecondTime = now;
@@ -216,5 +90,4 @@ const loop = createLoop({
     }
 });
 
-loop.start(); 
-
+loop.start();
