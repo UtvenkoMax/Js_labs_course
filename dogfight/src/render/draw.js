@@ -26,10 +26,25 @@ export function drawHud(steps, frames, ms) {
 
 
 export function drawBullet(ctx, bullet) {
+    ctx.save();
+
+    // Переміщуємо "перо" малювання до координат лазера
+    ctx.translate(bullet.x, bullet.y);
+
+    // Вираховуємо кут нахилу лазера на основі векторів його швидкості (vy та vx)
+    const angle = Math.atan2(bullet.vy, bullet.vx);
+    ctx.rotate(angle);
+
+    // Налаштовуємо неоновий червоний колір
     ctx.fillStyle = '#ff0044';
-    ctx.beginPath();
-    ctx.arc(bullet.x, bullet.y, 3, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '#ff0044';
+
+    // Малюємо прямокутник (довжина 16, товщина 4)
+    // Зміщуємо координати (-8, -2), щоб центр лазера рівно збігався з точкою зіткнення
+    ctx.fillRect(-8, -2, 16, 4);
+
+    ctx.restore();
 }
 
 export function drawAsteroid(ctx, asteroid) {

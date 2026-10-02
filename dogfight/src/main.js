@@ -1,4 +1,4 @@
-import './style.css';
+п»їimport './style.css';
 import { createLoop } from './loop.js';
 import { createInput } from './input.js';
 import { createShip, integrate } from './sim/ship.js';
@@ -22,7 +22,7 @@ document.querySelector('#app').innerHTML = `
 const { canvas, ctx, logicalWidth, logicalHeight } = setupCanvas('game-canvas');
 const input = createInput();
 
-// --- Ініціалізація стану гри ---
+// --- Р†РЅС–С†С–Р°Р»С–Р·Р°С†С–СЏ СЃС‚Р°РЅСѓ РіСЂРё ---
 const ship = createShip(logicalWidth / 2, logicalHeight / 2);
 const bullets = [];
 const asteroids = [];
@@ -32,23 +32,23 @@ for (let i = 0; i < 5; i++) {
     asteroids.push(createAsteroid(Math.random() * logicalWidth, Math.random() * logicalHeight, 30));
 }
 
-// --- Лічильники ---
+// --- Р›С–С‡РёР»СЊРЅРёРєРё ---
 let stepsThisSecond = 0;
 let framesThisSecond = 0;
 let lastSecondTime = performance.now();
 let lastFrameTime = performance.now();
 
-// --- Ігровий цикл ---
+// --- Р†РіСЂРѕРІРёР№ С†РёРєР» ---
 const loop = createLoop({
     step: 1 / 60,
     simulate: (dt) => {
         stepsThisSecond++;
 
-        // 1. Корабель
+        // 1. РљРѕСЂР°Р±РµР»СЊ
         integrate(ship, input, dt);
         wrapAround(ship, logicalWidth, logicalHeight);
 
-        // 2. Стрільба
+        // 2. РЎС‚СЂС–Р»СЊР±Р°
         if (fireCooldown > 0) fireCooldown -= dt;
         if (input.isDown('Space') && fireCooldown <= 0) {
             const noseX = ship.x + Math.cos(ship.angle) * 15;
@@ -57,26 +57,26 @@ const loop = createLoop({
             fireCooldown = 0.2;
         }
 
-        // 3. Оновлення інших об'єктів
+        // 3. РћРЅРѕРІР»РµРЅРЅСЏ С–РЅС€РёС… РѕР±'С”РєС‚С–РІ
         updateBullets(bullets, dt, logicalWidth, logicalHeight);
         updateAsteroids(asteroids, dt, logicalWidth, logicalHeight);
 
-        // 4. Фізика (зіткнення)
+        // 4. Р¤С–Р·РёРєР° (Р·С–С‚РєРЅРµРЅРЅСЏ)
         checkCollisions(bullets, asteroids);
     },
     render: (alpha) => {
         framesThisSecond++;
         ctx.clearRect(0, 0, logicalWidth, logicalHeight);
 
-        // Малюємо рамку арени
+        // РњР°Р»СЋС”РјРѕ СЂР°РјРєСѓ Р°СЂРµРЅРё
         drawArena(ctx, logicalWidth, logicalHeight);
 
-        // 1. Малюємо все
+        // 1. РњР°Р»СЋС”РјРѕ РІСЃРµ
         drawShip(ctx, ship);
         bullets.forEach(b => drawBullet(ctx, b));
         asteroids.forEach(a => drawAsteroid(ctx, a));
 
-        // 2. Оновлення HUD
+        // 2. РћРЅРѕРІР»РµРЅРЅСЏ HUD
         const now = performance.now();
         const frameMs = now - lastFrameTime;
         lastFrameTime = now;
