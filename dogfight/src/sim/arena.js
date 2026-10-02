@@ -1,4 +1,4 @@
-// src/sim/arena.js
+
 export function wrapAround(entity, width, height) {
     if (entity.x < 0) entity.x = width;
     if (entity.x > width) entity.x = 0;

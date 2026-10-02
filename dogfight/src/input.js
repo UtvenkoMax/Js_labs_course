@@ -1,4 +1,4 @@
-// src/input.js
+
 export function createInput() {
   const keys = {};
 

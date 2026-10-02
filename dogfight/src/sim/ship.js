@@ -1,4 +1,4 @@
-// src/sim/ship.js
+
 export function createShip(x, y) {
     return { x, y, angle: 0, rotationSpeed: 3, speed: 200 };
 }

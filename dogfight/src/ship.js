@@ -1,4 +1,4 @@
-// src/ship.js
+
 export function createShip(x, y) {
     return {
         x,

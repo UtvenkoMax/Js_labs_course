@@ -1,6 +1,4 @@
 
-
-// src/loop.js
 export function createLoop({ step = 1 / 60, simulate, render }) {
     let accumulator = 0;
     let lastTime = 0;

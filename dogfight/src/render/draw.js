@@ -1,4 +1,4 @@
-// src/render/draw.js
+
 export function drawShip(ctx, ship) {
     ctx.save();
     ctx.translate(ship.x, ship.y);

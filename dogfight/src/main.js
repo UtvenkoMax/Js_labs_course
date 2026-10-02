@@ -4,10 +4,11 @@ import { createInput } from './input.js';
 import { createShip, integrate } from './sim/ship.js';
 import { wrapAround } from './sim/arena.js';
 import { createBullet, updateBullets } from './sim/bullet.js';
-import { createAsteroid, updateAsteroids } from './sim/asteroid.js';
+import { createAsteroid, updateAsteroids, createAsteroidAtEdge } from './sim/asteroid.js';
 import { checkCollisions } from './sim/collisions.js';
 import { setupCanvas } from './render/canvas.js';
 import { drawShip, drawHud, drawBullet, drawAsteroid, drawArena } from './render/draw.js';
+
 
 
 document.querySelector('#app').innerHTML = `
@@ -27,6 +28,15 @@ const ship = createShip(logicalWidth / 2, logicalHeight / 2);
 const bullets = [];
 const asteroids = [];
 let fireCooldown = 0;
+
+// --- ДОДАЄМО ЗМІННІ ДЛЯ РЕСПАВНУ ---
+const MAX_ASTEROIDS = 5;       // Скільки максимум астероїдів має бути на екрані
+let respawnTimer = 5;          // Таймер у секундах
+// -----------------------------------
+
+for (let i = 0; i < MAX_ASTEROIDS; i++) {
+    asteroids.push(createAsteroid(Math.random() * logicalWidth, Math.random() * logicalHeight, 30));
+}
 
 for (let i = 0; i < 5; i++) {
     asteroids.push(createAsteroid(Math.random() * logicalWidth, Math.random() * logicalHeight, 30));
@@ -63,6 +73,25 @@ const loop = createLoop({
 
         // 4. Фізика (зіткнення)
         checkCollisions(bullets, asteroids);
+
+        // --- 5. ЛОГІКА ВІДРОДЖЕННЯ АСТЕРОЇДІВ ---
+        // Якщо астероїдів менше ніж треба — починаємо відлік
+        if (asteroids.length < MAX_ASTEROIDS) {
+            respawnTimer -= dt; // Віднімаємо час кадру
+
+            // Коли таймер дійшов до нуля (або нижче)
+            if (respawnTimer <= 0) {
+                // Створюємо новий астероїд за краєм екрана
+                asteroids.push(createAsteroidAtEdge(logicalWidth, logicalHeight, 30));
+
+                // Скидаємо таймер знову на 5 секунд для наступного астероїда
+                respawnTimer = 5;
+            }
+        } else {
+            // Якщо астероїдів вистачає, тримаємо таймер "повним"
+            respawnTimer = 5;
+        }
+        
     },
     render: (alpha) => {
         framesThisSecond++;

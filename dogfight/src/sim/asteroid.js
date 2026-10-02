@@ -31,3 +31,28 @@ export function updateAsteroids(asteroids, dt, width, height) {
     }
 }
 
+
+
+export function createAsteroidAtEdge(width, height, radius) {
+    let x, y;
+
+    // Вибираємо випадковий край: 0 - верх, 1 - низ, 2 - ліво, 3 - право
+    const edge = Math.floor(Math.random() * 4);
+
+    if (edge === 0) {
+        x = Math.random() * width;
+        y = -radius; // Трохи вище верхнього краю
+    } else if (edge === 1) {
+        x = Math.random() * width;
+        y = height + radius; // Трохи нижче нижнього краю
+    } else if (edge === 2) {
+        x = -radius; // Трохи лівіше лівого краю
+        y = Math.random() * height;
+    } else {
+        x = width + radius; // Трохи правіше правого краю
+        y = Math.random() * height;
+    }
+
+    // Створюємо астероїд за цими координатами за допомогою нашої основної функції
+    return createAsteroid(x, y, radius);
+}

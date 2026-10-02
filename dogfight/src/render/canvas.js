@@ -1,4 +1,4 @@
-// src/render/canvas.js
+
 export function setupCanvas(canvasId) {
     const canvas = document.getElementById(canvasId);
     const ctx = canvas.getContext('2d');
