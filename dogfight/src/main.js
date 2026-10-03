@@ -60,7 +60,10 @@ const loop = createLoop({
 
         // 2. Стрільба
         if (fireCooldown > 0) fireCooldown -= dt;
-        if (input.isDown('Space') && fireCooldown <= 0) {
+        // СТАЛО (стрільба працює і на Пробіл, і на клавішу K, і на правий Shift):
+        const isFiring = input.isDown('Space') || input.isDown('KeyK') || input.isDown('ShiftRight');
+
+        if (isFiring && fireCooldown <= 0) {
             const noseX = ship.x + Math.cos(ship.angle) * 15;
             const noseY = ship.y + Math.sin(ship.angle) * 15;
             bullets.push(createBullet(noseX, noseY, ship.angle));
