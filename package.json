@@ -1,0 +1,9 @@
+{
+  "name": "js-labs-course",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix dogfight",
+    "build": "npm run build --prefix dogfight",
+    "preview": "npm run preview --prefix dogfight"
+  }
+}
