@@ -1,60 +1,125 @@
-import './style.css'
-import heroImg from './assets/hero.png'
-import javascriptLogo from './assets/javascript.svg'
-import viteLogo from './assets/vite.svg'
-import { setupCounter } from './counter.js'
+﻿import './style.css';
+import { createLoop } from './loop.js';
+import { createInput } from './input.js';
+import { createShip, integrate } from './sim/ship.js';
+import { wrapAround } from './sim/arena.js';
+import { createBullet, updateBullets } from './sim/bullet.js';
+import { createAsteroid, updateAsteroids, createAsteroidAtEdge } from './sim/asteroid.js';
+import { checkCollisions } from './sim/collisions.js';
+import { setupCanvas } from './render/canvas.js';
+import { drawShip, drawHud, drawBullet, drawAsteroid, drawArena } from './render/draw.js';
+
+
 
 document.querySelector('#app').innerHTML = `
-<section id="center">
-  <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-    <img src="${javascriptLogo}" class="framework" alt="JavaScript logo"/>
-    <img src="${viteLogo}" class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/main.js</code> and save to test <code>HMR</code></p>
-  </div>
-  <button id="counter" type="button" class="counter"></button>
-</section>
+<div id="hud" style="position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); color: #0f0; padding: 10px; font-family: monospace; z-index: 1000; border-radius: 5px;">
+  <div>steps/s: <span id="hud-steps">0</span></div>
+  <div>frames/s: <span id="hud-frames">0</span></div>
+  <div>frame ms: <span id="hud-ms">0</span></div>
+</div>
+<canvas id="game-canvas" style="width: 800px; height: 600px; background: #111; display: block; margin: 20px auto; border: 1px solid #333;"></canvas>
+`;
 
-<div class="ticks"></div>
+const { canvas, ctx, logicalWidth, logicalHeight } = setupCanvas('game-canvas');
+const input = createInput();
 
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#documentation-icon"></use></svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">
-          <img class="button-icon" src="${javascriptLogo}" alt="">
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li><a href="https://github.com/vitejs/vite" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#github-icon"></use></svg>GitHub</a></li>
-      <li><a href="https://chat.vite.dev/" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#discord-icon"></use></svg>Discord</a></li>
-      <li><a href="https://x.com/vite_js" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#x-icon"></use></svg>X.com</a></li>
-      <li><a href="https://bsky.app/profile/vite.dev" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#bluesky-icon"></use></svg>Bluesky</a></li>
-    </ul>
-  </div>
-</section>
+// --- Ініціалізація стану гри ---
+const ship = createShip(logicalWidth / 2, logicalHeight / 2);
+const bullets = [];
+const asteroids = [];
+let fireCooldown = 0;
 
-<div class="ticks"></div>
-<section id="spacer"></section>
-`
+// --- ДОДАЄМО ЗМІННІ ДЛЯ РЕСПАВНУ ---
+const MAX_ASTEROIDS = 5;       // Скільки максимум астероїдів має бути на екрані
+let respawnTimer = 5;          // Таймер у секундах
+// -----------------------------------
 
-setupCounter(document.querySelector('#counter'))
+for (let i = 0; i < MAX_ASTEROIDS; i++) {
+    asteroids.push(createAsteroid(Math.random() * logicalWidth, Math.random() * logicalHeight, 30));
+}
+
+for (let i = 0; i < 5; i++) {
+    asteroids.push(createAsteroid(Math.random() * logicalWidth, Math.random() * logicalHeight, 30));
+}
+
+// --- Лічильники ---
+let stepsThisSecond = 0;
+let framesThisSecond = 0;
+let lastSecondTime = performance.now();
+let lastFrameTime = performance.now();
+
+// --- Ігровий цикл ---
+const loop = createLoop({
+    step: 1 / 60,
+    simulate: (dt) => {
+        stepsThisSecond++;
+
+        // 1. Корабель
+        integrate(ship, input, dt);
+        wrapAround(ship, logicalWidth, logicalHeight);
+
+        // 2. Стрільба
+        if (fireCooldown > 0) fireCooldown -= dt;
+        // СТАЛО (стрільба працює і на Пробіл, і на клавішу K, і на правий Shift):
+        const isFiring = input.isDown('Space') || input.isDown('KeyK') || input.isDown('ShiftRight');
+
+        if (isFiring && fireCooldown <= 0) {
+            const noseX = ship.x + Math.cos(ship.angle) * 15;
+            const noseY = ship.y + Math.sin(ship.angle) * 15;
+            bullets.push(createBullet(noseX, noseY, ship.angle));
+            fireCooldown = 0.2;
+        }
+
+        // 3. Оновлення інших об'єктів
+        updateBullets(bullets, dt, logicalWidth, logicalHeight);
+        updateAsteroids(asteroids, dt, logicalWidth, logicalHeight);
+
+        // 4. Фізика (зіткнення)
+        checkCollisions(bullets, asteroids);
+
+        // --- 5. ЛОГІКА ВІДРОДЖЕННЯ АСТЕРОЇДІВ ---
+        // Якщо астероїдів менше ніж треба — починаємо відлік
+        if (asteroids.length < MAX_ASTEROIDS) {
+            respawnTimer -= dt; // Віднімаємо час кадру
+
+            // Коли таймер дійшов до нуля (або нижче)
+            if (respawnTimer <= 0) {
+                // Створюємо новий астероїд за краєм екрана
+                asteroids.push(createAsteroidAtEdge(logicalWidth, logicalHeight, 30));
+
+                // Скидаємо таймер знову на 5 секунд для наступного астероїда
+                respawnTimer = 5;
+            }
+        } else {
+            // Якщо астероїдів вистачає, тримаємо таймер "повним"
+            respawnTimer = 5;
+        }
+        
+    },
+    render: (alpha) => {
+        framesThisSecond++;
+        ctx.clearRect(0, 0, logicalWidth, logicalHeight);
+
+        // Малюємо рамку арени
+        drawArena(ctx, logicalWidth, logicalHeight);
+
+        // 1. Малюємо все
+        drawShip(ctx, ship);
+        bullets.forEach(b => drawBullet(ctx, b));
+        asteroids.forEach(a => drawAsteroid(ctx, a));
+
+        // 2. Оновлення HUD
+        const now = performance.now();
+        const frameMs = now - lastFrameTime;
+        lastFrameTime = now;
+
+        if (now - lastSecondTime >= 1000) {
+            drawHud(stepsThisSecond, framesThisSecond, frameMs.toFixed(1));
+            stepsThisSecond = 0;
+            framesThisSecond = 0;
+            lastSecondTime = now;
+        }
+    }
+});
+
+loop.start();
