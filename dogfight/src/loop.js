@@ -1,15 +1,12 @@
-// src/loop.js
-export function startLoop() {
-    console.log("Ігровий цикл працює!");
-}
 
-// src/loop.js
 export function createLoop({ step = 1 / 60, simulate, render }) {
     let accumulator = 0;
     let lastTime = 0;
     let animationFrameId = null;
 
     function frame(time) {
+        console.log("Ігровий цикл працює!"); // <-- Перевірочний log
+
         // При першому запуску time може бути великим, тому ініціалізуємо lastTime
         if (lastTime === 0) lastTime = time;
 
